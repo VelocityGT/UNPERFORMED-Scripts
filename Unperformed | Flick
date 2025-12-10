@@ -1,0 +1,1008 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+
+local function GetHumanoid()
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    return char:FindFirstChildOfClass("Humanoid")
+end
+
+local DEFAULT_WALK_SPEED = 16
+local walkSpeedValue = DEFAULT_WALK_SPEED
+local walkSpeedEnabled = false
+
+local DEFAULT_JUMP_POWER = 50
+local jumpPowerValue = DEFAULT_JUMP_POWER
+local jumpPowerEnabled = false
+
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "UNPERFORMED | FLICK",
+   Icon = "cloud-lightning",
+   LoadingTitle = "Unperformed Services",
+   LoadingSubtitle = "by UNPERFORMED",
+   ShowText = "UNPERFORMED",
+   Theme = "Default",
+
+   ToggleUIKeybind = "K",
+
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false,
+
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = nil,
+      FileName = "UNPERFORMED"
+   },
+
+   Discord = {
+      Enabled = false,
+      Invite = "noinvitelink",
+      RememberJoins = true
+   },
+
+   KeySystem = false,
+   KeySettings = {
+      Title = "Untitled",
+      Subtitle = "Key System",
+      Note = "No method of obtaining the key is provided",
+      FileName = "Key",
+      SaveKey = true,
+      GrabKeyFromSite = false,
+      Key = {"Hello"}
+   }
+})
+
+-- Tabs
+local PlayerTab = Window:CreateTab("Player", "user")
+local VisualTab = Window:CreateTab("Visual", "eye")
+local BlatantTab = Window:CreateTab("Blatant", "skull")
+local InfoTab = Window:CreateTab("Info", "album")
+
+----------------------------------------------------------------
+-- PLAYER TAB
+----------------------------------------------------------------
+local Divider = PlayerTab:CreateDivider()
+
+-- WalkSpeed Toggle + Slider
+local WalkSpeedToggle = PlayerTab:CreateToggle({
+    Name = "Walkspeed Changer",
+    CurrentValue = false,
+    Flag = "UNP_WalkSpeedToggle",
+    Callback = function(Value)
+        walkSpeedEnabled = Value
+
+        local hum = GetHumanoid()
+        if hum then
+            if walkSpeedEnabled then
+                hum.WalkSpeed = walkSpeedValue
+            else
+                hum.WalkSpeed = DEFAULT_WALK_SPEED
+            end
+        end
+    end,
+})
+
+local WalkSpeedSlider = PlayerTab:CreateSlider({
+    Name = "WalkSpeed Value",
+    Range = {16, 100},
+    Increment = 1,
+    Suffix = " WalkSpeed",
+    CurrentValue = walkSpeedValue,
+    Flag = "UNP_WalkSpeedSlider",
+    Callback = function(Value)
+        walkSpeedValue = Value
+
+        if walkSpeedEnabled then
+            local hum = GetHumanoid()
+            if hum then
+                hum.WalkSpeed = walkSpeedValue
+            end
+        end
+    end,
+})
+
+LocalPlayer.CharacterAdded:Connect(function(char)
+    if walkSpeedEnabled then
+        local hum = char:WaitForChild("Humanoid")
+        hum.WalkSpeed = walkSpeedValue
+    end
+end)
+
+-- Jump Height
+local JumpDivider = PlayerTab:CreateDivider()
+
+local JumpPowerToggle = PlayerTab:CreateToggle({
+    Name = "Jump Height Changer",
+    CurrentValue = false,
+    Flag = "UNP_JumpPowerToggle",
+    Callback = function(Value)
+        jumpPowerEnabled = Value
+
+        local hum = GetHumanoid()
+        if hum then
+            if jumpPowerEnabled then
+                hum.JumpPower = jumpPowerValue
+            else
+                hum.JumpPower = DEFAULT_JUMP_POWER
+            end
+        end
+    end,
+})
+
+local JumpPowerSlider = PlayerTab:CreateSlider({
+    Name = "Jump Height Value",
+    Range = {50, 200},
+    Increment = 5,
+    Suffix = " JumpHeight",
+    CurrentValue = jumpPowerValue,
+    Flag = "UNP_JumpPowerSlider",
+    Callback = function(Value)
+        jumpPowerValue = Value
+
+        if jumpPowerEnabled then
+            local hum = GetHumanoid()
+            if hum then
+                hum.JumpPower = jumpPowerValue
+            end
+        end
+    end,
+})
+
+LocalPlayer.CharacterAdded:Connect(function(char)
+    if jumpPowerEnabled then
+        local hum = char:WaitForChild("Humanoid")
+        hum.JumpPower = jumpPowerValue
+    end
+end)
+
+-- Keep WalkSpeed / JumpPower consistent (for your own place)
+RunService.Heartbeat:Connect(function()
+    local hum = GetHumanoid()
+    if not hum then return end
+
+    if walkSpeedEnabled then
+        if hum.WalkSpeed ~= walkSpeedValue then
+            hum.WalkSpeed = walkSpeedValue
+        end
+    else
+        if hum.WalkSpeed ~= DEFAULT_WALK_SPEED then
+            hum.WalkSpeed = DEFAULT_WALK_SPEED
+        end
+    end
+
+    if jumpPowerEnabled then
+        if hum.JumpPower ~= jumpPowerValue then
+            hum.JumpPower = jumpPowerValue
+        end
+    else
+        if hum.JumpPower ~= DEFAULT_JUMP_POWER then
+            hum.JumpPower = DEFAULT_JUMP_POWER
+        end
+    end
+end)
+
+-- Noclip
+local noclipEnabled = false
+local noclipConnection
+local noclipParts = {}
+
+local NoclipDivider = PlayerTab:CreateDivider()
+
+local function RefreshNoclipParts()
+    noclipParts = {}
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") and part.CanCollide then
+            table.insert(noclipParts, part)
+        end
+    end
+end
+
+LocalPlayer.CharacterAdded:Connect(function()
+    if noclipEnabled then
+        RefreshNoclipParts()
+    end
+end)
+
+local NoclipToggle = PlayerTab:CreateToggle({
+    Name = "Noclip",
+    CurrentValue = false,
+    Flag = "UNP_NoclipToggle",
+    Callback = function(Value)
+        noclipEnabled = Value
+
+        if noclipEnabled then
+            RefreshNoclipParts()
+
+            if not noclipConnection then
+                noclipConnection = RunService.Stepped:Connect(function()
+                    if not noclipEnabled then return end
+
+                    for _, part in ipairs(noclipParts) do
+                        if part and part.Parent then
+                            part.CanCollide = false
+                        end
+                    end
+                end)
+            end
+        else
+            if noclipConnection then
+                noclipConnection:Disconnect()
+                noclipConnection = nil
+            end
+
+            for _, part in ipairs(noclipParts) do
+                if part and part.Parent then
+                    part.CanCollide = true
+                end
+            end
+
+            noclipParts = {}
+        end
+    end,
+})
+
+-- Fly + Speed Slider (BodyVelocity-based)
+local flyEnabled = false
+local flySpeed = 60
+local flyConnection
+local flyBodyVelocity
+
+local FlyDivider = PlayerTab:CreateDivider()
+
+local function StopFly()
+    flyEnabled = false
+
+    if flyConnection then
+        flyConnection:Disconnect()
+        flyConnection = nil
+    end
+
+    if flyBodyVelocity then
+        flyBodyVelocity:Destroy()
+        flyBodyVelocity = nil
+    end
+
+    local hum = GetHumanoid()
+    if hum then
+        hum.PlatformStand = false
+    end
+end
+
+local FlyToggle = PlayerTab:CreateToggle({
+    Name = "Fly (WASD + Space/CTRL)",
+    CurrentValue = false,
+    Flag = "UNP_FlyToggle",
+    Callback = function(Value)
+        if not Value then
+            StopFly()
+            return
+        end
+
+        flyEnabled = true
+
+        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        local root = char:FindFirstChild("HumanoidRootPart")
+
+        if not hum or not root then
+            StopFly()
+            return
+        end
+
+        hum.PlatformStand = false -- let physics work; we push with BodyVelocity
+
+        if not flyBodyVelocity then
+            flyBodyVelocity = Instance.new("BodyVelocity")
+            flyBodyVelocity.Name = "UNP_FlyVelocity"
+            flyBodyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+            flyBodyVelocity.Velocity = Vector3.zero
+            flyBodyVelocity.Parent = root
+        else
+            flyBodyVelocity.Parent = root
+        end
+
+        if flyConnection then
+            flyConnection:Disconnect()
+            flyConnection = nil
+        end
+
+        flyConnection = RunService.RenderStepped:Connect(function(dt)
+            if not flyEnabled then
+                flyBodyVelocity.Velocity = Vector3.zero
+                return
+            end
+
+            local currentChar = LocalPlayer.Character
+            local currentRoot = currentChar and currentChar:FindFirstChild("HumanoidRootPart")
+            local cam = workspace.CurrentCamera
+
+            if not currentChar or not currentRoot or not cam then
+                flyBodyVelocity.Velocity = Vector3.zero
+                return
+            end
+
+            local moveDir = Vector3.zero
+
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                moveDir += cam.CFrame.LookVector
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                moveDir -= cam.CFrame.LookVector
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                moveDir -= cam.CFrame.RightVector
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                moveDir += cam.CFrame.RightVector
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                moveDir += Vector3.new(0, 1, 0)
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+                moveDir -= Vector3.new(0, 1, 0)
+            end
+
+            if moveDir.Magnitude > 0 then
+                moveDir = moveDir.Unit
+                flyBodyVelocity.Velocity = moveDir * flySpeed
+            else
+                flyBodyVelocity.Velocity = Vector3.zero
+            end
+        end)
+    end,
+})
+
+local FlySpeedSlider = PlayerTab:CreateSlider({
+    Name = "Fly Speed",
+    Range = {20, 200},
+    Increment = 5,
+    Suffix = " FlySpeed",
+    CurrentValue = flySpeed,
+    Flag = "UNP_FlySpeedSlider",
+    Callback = function(Value)
+        flySpeed = Value
+    end,
+})
+
+----------------------------------------------------------------
+-- VISUAL TAB
+----------------------------------------------------------------
+
+-- Save original lighting for fullbright restore
+local savedLighting = {
+    Ambient = Lighting.Ambient,
+    Brightness = Lighting.Brightness,
+    ClockTime = Lighting.ClockTime,
+    FogEnd = Lighting.FogEnd,
+    GlobalShadows = Lighting.GlobalShadows
+}
+
+local VisualDivider1 = VisualTab:CreateDivider()
+
+-- Fullbright
+local fullbrightEnabled = false
+
+local FullbrightToggle = VisualTab:CreateToggle({
+    Name = "Fullbright",
+    CurrentValue = false,
+    Flag = "UNP_FullbrightToggle",
+    Callback = function(Value)
+        fullbrightEnabled = Value
+
+        if fullbrightEnabled then
+            Lighting.Ambient = Color3.new(1, 1, 1)
+            Lighting.Brightness = 2
+            Lighting.ClockTime = 14
+            Lighting.FogEnd = 1e9
+            Lighting.GlobalShadows = false
+        else
+            Lighting.Ambient = savedLighting.Ambient
+            Lighting.Brightness = savedLighting.Brightness
+            Lighting.ClockTime = savedLighting.ClockTime
+            Lighting.FogEnd = savedLighting.FogEnd
+            Lighting.GlobalShadows = savedLighting.GlobalShadows
+        end
+    end,
+})
+
+-- FOV Changer + Slider
+local defaultFOV = (workspace.CurrentCamera and workspace.CurrentCamera.FieldOfView) or 70
+
+local FOVSlider = VisualTab:CreateSlider({
+    Name = "FOV Changer",
+    Range = {50, 120},
+    Increment = 1,
+    Suffix = " FOV",
+    CurrentValue = defaultFOV,
+    Flag = "UNP_FOVSlider",
+    Callback = function(Value)
+        local cam = workspace.CurrentCamera
+        if cam then
+            cam.FieldOfView = Value
+        end
+    end,
+})
+
+-- Chams ESP + Color Picker
+local VisualDivider2 = VisualTab:CreateDivider()
+
+local chamsEnabled = false
+local chamsColor = Color3.fromRGB(0, 255, 0)
+local chamsConnections = {}
+
+local function ApplyChamsToCharacter(player, character)
+    if not chamsEnabled then return end
+    if player == LocalPlayer then return end
+    if not character then return end
+
+    local highlight = character:FindFirstChild("UNP_ChamsHighlight")
+    if not highlight then
+        highlight = Instance.new("Highlight")
+        highlight.Name = "UNP_ChamsHighlight"
+        highlight.Adornee = character
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        highlight.FillTransparency = 0.5
+        highlight.OutlineTransparency = 0
+        highlight.Parent = character
+    end
+
+    highlight.FillColor = chamsColor
+    highlight.OutlineColor = chamsColor
+end
+
+local function EnableChams()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            local char = plr.Character
+            if char then
+                ApplyChamsToCharacter(plr, char)
+            end
+            if not chamsConnections[plr] then
+                chamsConnections[plr] = plr.CharacterAdded:Connect(function(char)
+                    ApplyChamsToCharacter(plr, char)
+                end)
+            end
+        end
+    end
+end
+
+local function DisableChams()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            local h = plr.Character:FindFirstChild("UNP_ChamsHighlight")
+            if h then
+                h:Destroy()
+            end
+        end
+        if chamsConnections[plr] then
+            chamsConnections[plr]:Disconnect()
+            chamsConnections[plr] = nil
+        end
+    end
+end
+
+Players.PlayerAdded:Connect(function(plr)
+    if plr == LocalPlayer then return end
+    if chamsEnabled and not chamsConnections[plr] then
+        chamsConnections[plr] = plr.CharacterAdded:Connect(function(char)
+            ApplyChamsToCharacter(plr, char)
+        end)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(plr)
+    if chamsConnections[plr] then
+        chamsConnections[plr]:Disconnect()
+        chamsConnections[plr] = nil
+    end
+end)
+
+local ChamsToggle = VisualTab:CreateToggle({
+    Name = "Chams ESP",
+    CurrentValue = false,
+    Flag = "UNP_ChamsToggle",
+    Callback = function(Value)
+        chamsEnabled = Value
+        if chamsEnabled then
+            EnableChams()
+        else
+            DisableChams()
+        end
+    end,
+})
+
+local ChamsColorPicker = VisualTab:CreateColorPicker({
+    Name = "Chams Color",
+    Color = chamsColor,
+    Flag = "UNP_ChamsColor",
+    Callback = function(Color)
+        chamsColor = Color
+        if not chamsEnabled then return end
+
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character then
+                local h = plr.Character:FindFirstChild("UNP_ChamsHighlight")
+                if h then
+                    h.FillColor = chamsColor
+                    h.OutlineColor = chamsColor
+                end
+            end
+        end
+    end,
+})
+
+----------------------------------------------------------------
+-- TRACERS (fixed origin + head lock)
+----------------------------------------------------------------
+
+local VisualDivider3 = VisualTab:CreateDivider()
+
+local tracersEnabled = false
+local tracersColor = Color3.fromRGB(255, 255, 255)
+local tracerPositionMode = "Bottom"
+local tracerLines = {}
+local tracerConnection
+
+local function GetScreenPointFromWorld(pos)
+    local cam = workspace.CurrentCamera
+    if not cam then return nil end
+    local vec3, onScreen = cam:WorldToViewportPoint(pos)
+    if not onScreen then return nil end
+    return Vector2.new(vec3.X, vec3.Y)
+end
+
+local function GetTracerOrigin()
+    local cam = workspace.CurrentCamera
+    if not cam then return nil end
+
+    local size = cam.ViewportSize
+
+    if tracerPositionMode == "Middle" then
+        return Vector2.new(size.X / 2, size.Y / 2)
+    elseif tracerPositionMode == "Top" then
+        return Vector2.new(size.X / 2, size.Y * 0.1)
+    else -- Bottom
+        return Vector2.new(size.X / 2, size.Y * 0.9)
+    end
+end
+
+local function GetCharacterTracerWorldPos(char)
+    if not char then return nil end
+
+    local head = char:FindFirstChild("Head")
+    if head and head:IsA("BasePart") then
+        return head.Position
+    end
+
+    local upperTorso = char:FindFirstChild("UpperTorso")
+    if upperTorso and upperTorso:IsA("BasePart") then
+        return upperTorso.Position
+    end
+
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if hrp and hrp:IsA("BasePart") then
+        return hrp.Position
+    end
+
+    return nil
+end
+
+local function CreateTracerForPlayer(player)
+    if player == LocalPlayer then return end
+    if tracerLines[player] then return end
+
+    if not Drawing then
+        return
+    end
+
+    local line = Drawing.new("Line")
+    line.Visible = false
+    line.Thickness = 1.5
+    line.Color = tracersColor
+    tracerLines[player] = line
+end
+
+local function RemoveTracerForPlayer(player)
+    local line = tracerLines[player]
+    if line then
+        line.Visible = false
+        line:Remove()
+        tracerLines[player] = nil
+    end
+end
+
+for _, plr in ipairs(Players:GetPlayers()) do
+    if plr ~= LocalPlayer then
+        CreateTracerForPlayer(plr)
+    end
+end
+
+Players.PlayerAdded:Connect(function(plr)
+    if plr ~= LocalPlayer then
+        CreateTracerForPlayer(plr)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(plr)
+    RemoveTracerForPlayer(plr)
+end)
+
+local function EnableTracers()
+    if tracerConnection or not Drawing then return end
+
+    tracerConnection = RunService.RenderStepped:Connect(function()
+        if not tracersEnabled then
+            for _, line in pairs(tracerLines) do
+                line.Visible = false
+            end
+            return
+        end
+
+        local origin = GetTracerOrigin()
+        local cam = workspace.CurrentCamera
+        if not origin or not cam then
+            for _, line in pairs(tracerLines) do
+                line.Visible = false
+            end
+            return
+        end
+
+        for plr, line in pairs(tracerLines) do
+            local char = plr.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if char and hum and hum.Health > 0 then
+                local worldPos = GetCharacterTracerWorldPos(char)
+                if worldPos then
+                    local screenPos = GetScreenPointFromWorld(worldPos)
+                    if screenPos then
+                        line.From = origin
+                        line.To = screenPos
+                        line.Visible = true
+                        line.Color = tracersColor
+                    else
+                        line.Visible = false
+                    end
+                else
+                    line.Visible = false
+                end
+            else
+                line.Visible = false
+            end
+        end
+    end)
+end
+
+local function DisableTracers()
+    if tracerConnection then
+        tracerConnection:Disconnect()
+        tracerConnection = nil
+    end
+    for _, line in pairs(tracerLines) do
+        line.Visible = false
+    end
+end
+
+local TracerToggle = VisualTab:CreateToggle({
+    Name = "Tracers",
+    CurrentValue = false,
+    Flag = "UNP_TracersToggle",
+    Callback = function(Value)
+        tracersEnabled = Value
+        if tracersEnabled then
+            EnableTracers()
+        else
+            DisableTracers()
+        end
+    end,
+})
+
+local TracerColorPicker = VisualTab:CreateColorPicker({
+    Name = "Tracer Color",
+    Color = tracersColor,
+    Flag = "UNP_TracerColor",
+    Callback = function(Color)
+        tracersColor = Color
+        for _, line in pairs(tracerLines) do
+            line.Color = tracersColor
+        end
+    end,
+})
+
+local TracerPositionDropdown = VisualTab:CreateDropdown({
+    Name = "Tracer Position",
+    Options = {"Bottom", "Middle", "Top"},
+    CurrentOption = "Bottom",
+    Flag = "UNP_TracerPos",
+    Callback = function(Option)
+        tracerPositionMode = Option
+    end,
+})
+
+----------------------------------------------------------------
+-- BLATANT TAB: SILENT AIM + FOV + CHECKS + AUTO JUMP
+----------------------------------------------------------------
+
+local BlatantDivider1 = BlatantTab:CreateDivider()
+
+local silentAimEnabled = false
+local silentAimSmoothing = 0.25 -- 0–1
+local silentAimFOV = 150
+local silentAimFOVVisible = true
+local silentAimFOVColor = Color3.fromRGB(255, 255, 255)
+
+local useTeamCheck = true
+local useAliveCheck = true
+local useWallCheck = true
+
+-- auto jump while aimbotting someone
+local autoJumpWhileAiming = false
+
+local FOVCircle = nil
+local silentAimConnection
+
+-- FOV circle
+local function CreateFOVCircle()
+    if not Drawing then return end
+
+    if FOVCircle then
+        FOVCircle:Remove()
+        FOVCircle = nil
+    end
+
+    local circle = Drawing.new("Circle")
+    circle.Visible = false
+    circle.Thickness = 1.5
+    circle.NumSides = 64
+    circle.Radius = silentAimFOV
+    circle.Filled = false
+    circle.Color = silentAimFOVColor
+    circle.Transparency = 1
+
+    FOVCircle = circle
+end
+
+if Drawing then
+    CreateFOVCircle()
+end
+
+-- Wall check: is target part visible from camera?
+local function IsVisibleFromCamera(part, targetCharacter)
+    local cam = workspace.CurrentCamera
+    if not cam or not part then return false end
+
+    local origin = cam.CFrame.Position
+    local direction = (part.Position - origin)
+
+    local rayParams = RaycastParams.new()
+    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+    rayParams.FilterDescendantsInstances = {
+        LocalPlayer.Character,
+        targetCharacter
+    }
+
+    local result = workspace:Raycast(origin, direction, rayParams)
+
+    -- If ray hits something (not our chars), it's a wall/obstacle
+    if result then
+        return false
+    end
+
+    return true
+end
+
+local function GetClosestTargetInFOV()
+    local cam = workspace.CurrentCamera
+    if not cam then return nil end
+
+    local vs = cam.ViewportSize
+    local screenCenter = Vector2.new(vs.X / 2, vs.Y / 2)
+
+    local myTeam = LocalPlayer.Team
+    local closestDist = math.huge
+    local closestPart = nil
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            -- TEAM CHECK (optional)
+            if not (useTeamCheck and myTeam and plr.Team == myTeam) then
+                local char = plr.Character
+                local hum = char and char:FindFirstChildOfClass("Humanoid")
+
+                if char and hum then
+                    -- ALIVE CHECK (optional)
+                    if (not useAliveCheck) or (hum.Health > 0 and hum:GetState() ~= Enum.HumanoidStateType.Dead) then
+                        local head = char:FindFirstChild("Head")
+                        local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("HumanoidRootPart")
+                        local part = head or torso
+
+                        if part and part:IsA("BasePart") then
+                            local vec3, onScreen = cam:WorldToViewportPoint(part.Position)
+                            if onScreen then
+                                local pos2D = Vector2.new(vec3.X, vec3.Y)
+                                local dist = (pos2D - screenCenter).Magnitude
+
+                                if dist <= silentAimFOV and dist < closestDist then
+                                    -- WALL CHECK (optional)
+                                    if (not useWallCheck) or IsVisibleFromCamera(part, char) then
+                                        closestDist = dist
+                                        closestPart = part
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return closestPart
+end
+
+-- Global helper you can use in your own gun scripts in *your* place
+_G.UNP_GetSilentAimTarget = function()
+    return GetClosestTargetInFOV()
+end
+
+local function EnableSilentAim()
+    if silentAimConnection or not workspace.CurrentCamera then return end
+
+    silentAimConnection = RunService.RenderStepped:Connect(function(dt)
+        local cam = workspace.CurrentCamera
+        if not cam then return end
+
+        -- Update FOV circle
+        if FOVCircle then
+            local vs = cam.ViewportSize
+            FOVCircle.Position = Vector2.new(vs.X / 2, vs.Y / 2)
+            FOVCircle.Radius = silentAimFOV
+            FOVCircle.Color = silentAimFOVColor
+            FOVCircle.Visible = silentAimEnabled and silentAimFOVVisible
+        end
+
+        if not silentAimEnabled then
+            return
+        end
+
+        local targetPart = GetClosestTargetInFOV()
+        if targetPart then
+            -- Smooth aim assist: lerp camera toward target
+            local camCF = cam.CFrame
+            local targetCF = CFrame.new(camCF.Position, targetPart.Position)
+            cam.CFrame = camCF:Lerp(targetCF, math.clamp(silentAimSmoothing, 0, 1))
+
+            -- auto jump while aimbotting someone
+            if autoJumpWhileAiming then
+                local hum = GetHumanoid()
+                if hum and hum.FloorMaterial ~= Enum.Material.Air then
+                    hum.Jump = true
+                end
+            end
+        end
+    end)
+end
+
+local function DisableSilentAim()
+    if silentAimConnection then
+        silentAimConnection:Disconnect()
+        silentAimConnection = nil
+    end
+
+    if FOVCircle then
+        FOVCircle.Visible = false
+    end
+end
+
+local SilentAimToggle = BlatantTab:CreateToggle({
+    Name = "AimBot",
+    CurrentValue = false,
+    Flag = "UNP_SilentAimToggle",
+    Callback = function(Value)
+        silentAimEnabled = Value
+        if silentAimEnabled then
+            EnableSilentAim()
+        else
+            DisableSilentAim()
+        end
+    end,
+})
+
+local SilentAimSmoothingSlider = BlatantTab:CreateSlider({
+    Name = "Aim Smoothing",
+    Range = {0.05, 1},
+    Increment = 0.05,
+    Suffix = " Smooth",
+    CurrentValue = silentAimSmoothing,
+    Flag = "UNP_SilentAimSmooth",
+    Callback = function(Value)
+        silentAimSmoothing = Value
+    end,
+})
+
+local SilentAimFOVSlider = BlatantTab:CreateSlider({
+    Name = "Silent Aim FOV",
+    Range = {20, 400},
+    Increment = 5,
+    Suffix = " px",
+    CurrentValue = silentAimFOV,
+    Flag = "UNP_SilentAimFOV",
+    Callback = function(Value)
+        silentAimFOV = Value
+    end,
+})
+
+local FOVCircleToggle = BlatantTab:CreateToggle({
+    Name = "Show FOV Circle",
+    CurrentValue = true,
+    Flag = "UNP_FOVCircleToggle",
+    Callback = function(Value)
+        silentAimFOVVisible = Value
+        if FOVCircle then
+            FOVCircle.Visible = silentAimEnabled and silentAimFOVVisible
+        end
+    end,
+})
+
+local FOVCircleColorPicker = BlatantTab:CreateColorPicker({
+    Name = "FOV Circle Color",
+    Color = silentAimFOVColor,
+    Flag = "UNP_FOVCircleColor",
+    Callback = function(Color)
+        silentAimFOVColor = Color
+    end,
+})
+
+local BlatantDivider2 = BlatantTab:CreateDivider()
+
+local TeamCheckToggle = BlatantTab:CreateToggle({
+    Name = "Use Team Check",
+    CurrentValue = true,
+    Flag = "UNP_TeamCheck",
+    Callback = function(Value)
+        useTeamCheck = Value
+    end,
+})
+
+local AliveCheckToggle = BlatantTab:CreateToggle({
+    Name = "Use Alive Check",
+    CurrentValue = true,
+    Flag = "UNP_AliveCheck",
+    Callback = function(Value)
+        useAliveCheck = Value
+    end,
+})
+
+local WallCheckToggle = BlatantTab:CreateToggle({
+    Name = "Use Wall Check",
+    CurrentValue = true,
+    Flag = "UNP_WallCheck",
+    Callback = function(Value)
+        useWallCheck = Value
+    end,
+})
+
+local GodModeAutoJumpToggle = BlatantTab:CreateToggle({
+    Name = "God Mode (Auto Jump While Aiming)",
+    CurrentValue = false,
+    Flag = "UNP_AutoJumpAiming",
+    Callback = function(Value)
+        autoJumpWhileAiming = Value
+    end,
+})
+
+----------------------------------------------------------------
+-- INFO TAB
+----------------------------------------------------------------
+
+local InfoDivider = InfoTab:CreateDivider()
+InfoTab:CreateParagraph({
+    Title = "UNPERFORMED | FLICK",
+    Content = "FLICK Cheat Script\nThe Owners are not responsible if you get banned (unlikley)"
+})
