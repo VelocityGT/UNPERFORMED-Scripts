@@ -876,7 +876,7 @@ local function EnableSilentAim()
             -- Smooth aim assist: lerp camera toward target
             local camCF = cam.CFrame
             local targetCF = CFrame.new(camCF.Position, targetPart.Position)
-            cam.CFrame = camCF:Lerp(targetCF, math.clamp(silentAimSmoothing, 0, 1))
+            
 
             -- auto jump while aimbotting someone
             if autoJumpWhileAiming then
