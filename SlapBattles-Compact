@@ -1,0 +1,288 @@
+-- Services
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- Helpers
+local function getHumanoid()
+	local char = LocalPlayer.Character
+	return char and char:FindFirstChildOfClass("Humanoid")
+end
+
+local function getRoot(char)
+	return char and char:FindFirstChild("HumanoidRootPart")
+end
+
+local function getPlayerByName(name)
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr.Name == name then
+			return plr
+		end
+	end
+end
+
+local function getPlayerNames()
+	local names = {}
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= LocalPlayer then
+			table.insert(names, plr.Name)
+		end
+	end
+	return names
+end
+
+----------------------------------------------------
+-- Rayfield UI
+----------------------------------------------------
+
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+
+local Window = Rayfield:CreateWindow({
+	Name = "Test Panel",
+	LoadingTitle = "Loading",
+	LoadingSubtitle = "Rayfield UI",
+	ConfigurationSaving = { Enabled = false }
+})
+
+local MainTab = Window:CreateTab("Main", 4483362458)
+
+----------------------------------------------------
+-- WalkSpeed
+----------------------------------------------------
+local Divider = MainTab:CreateDivider()
+
+local WalkSpeedEnabled = false
+local WalkSpeedValue = 16
+local DefaultWalkSpeed = 16
+local WalkSpeedToggleRef
+
+WalkSpeedToggleRef = MainTab:CreateToggle({
+	Name = "Custom WalkSpeed",
+	Callback = function(Value)
+		WalkSpeedEnabled = Value
+		local hum = getHumanoid()
+		if hum then
+			if Value then
+				DefaultWalkSpeed = hum.WalkSpeed
+				hum.WalkSpeed = WalkSpeedValue
+			else
+				hum.WalkSpeed = DefaultWalkSpeed
+			end
+		end
+	end
+})
+
+MainTab:CreateSlider({
+	Name = "WalkSpeed Amount",
+	Range = {16, 100},
+	Increment = 1,
+	CurrentValue = 16,
+	Callback = function(Value)
+		WalkSpeedValue = Value
+		if WalkSpeedEnabled then
+			local hum = getHumanoid()
+			if hum then hum.WalkSpeed = Value end
+		end
+	end
+})
+
+MainTab:CreateKeybind({
+	Name = "Toggle WalkSpeed",
+	CurrentKeybind = "Z",
+	Callback = function()
+		WalkSpeedToggleRef:Set(not WalkSpeedEnabled)
+	end
+})
+
+----------------------------------------------------
+-- Fly
+----------------------------------------------------
+local Divider = MainTab:CreateDivider()
+
+local FlyEnabled = false
+local FlySpeed = 50
+local FlyToggleRef
+local BV, BG, FlyConnection
+
+local function startFly()
+	local char = LocalPlayer.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	local hum = getHumanoid()
+	if not hrp or not hum then return end
+
+	hum.PlatformStand = true
+
+	BV = Instance.new("BodyVelocity")
+	BV.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+	BV.Parent = hrp
+
+	BG = Instance.new("BodyGyro")
+	BG.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
+	BG.Parent = hrp
+
+	FlyConnection = RunService.RenderStepped:Connect(function()
+		local cam = workspace.CurrentCamera
+		local dir = Vector3.zero
+
+		if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cam.CFrame.LookVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cam.CFrame.LookVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cam.CFrame.RightVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cam.CFrame.RightVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.yAxis end
+		if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then dir -= Vector3.yAxis end
+
+		BV.Velocity = dir.Magnitude > 0 and dir.Unit * FlySpeed or Vector3.zero
+		BG.CFrame = cam.CFrame
+	end)
+end
+
+local function stopFly()
+	if FlyConnection then FlyConnection:Disconnect() end
+	if BV then BV:Destroy() end
+	if BG then BG:Destroy() end
+	BV, BG, FlyConnection = nil, nil, nil
+
+	local hum = getHumanoid()
+	if hum then hum.PlatformStand = false end
+end
+
+FlyToggleRef = MainTab:CreateToggle({
+	Name = "Fly",
+	Callback = function(Value)
+		FlyEnabled = Value
+		if Value then startFly() else stopFly() end
+	end
+})
+
+MainTab:CreateSlider({
+	Name = "Fly Speed",
+	Range = {10, 300},
+	Increment = 5,
+	CurrentValue = 50,
+	Callback = function(Value)
+		FlySpeed = Value
+	end
+})
+
+MainTab:CreateKeybind({
+	Name = "Toggle Fly",
+	CurrentKeybind = "F",
+	Callback = function()
+		FlyToggleRef:Set(not FlyEnabled)
+	end
+})
+
+----------------------------------------------------
+-- Follow Player
+----------------------------------------------------
+local Divider = MainTab:CreateDivider()
+
+local FollowEnabled = false
+local FollowTargetName
+local FollowSpeed = 0.5
+local FollowToggleRef
+local FollowConnection
+local ActiveTween
+
+local function startFollow()
+	if FollowConnection then FollowConnection:Disconnect() end
+
+	FollowConnection = RunService.Heartbeat:Connect(function()
+		if not FollowEnabled or not FollowTargetName then return end
+
+		local target = getPlayerByName(FollowTargetName)
+		local myHRP = getRoot(LocalPlayer.Character)
+		local targetHRP = target and getRoot(target.Character)
+		if not myHRP or not targetHRP then return end
+
+		if ActiveTween then ActiveTween:Cancel() end
+
+		ActiveTween = TweenService:Create(
+			myHRP,
+			TweenInfo.new(FollowSpeed, Enum.EasingStyle.Linear),
+			{ CFrame = targetHRP.CFrame * CFrame.new(0, 0, -3) }
+		)
+		ActiveTween:Play()
+	end)
+end
+
+local function stopFollow()
+	if FollowConnection then FollowConnection:Disconnect() end
+	if ActiveTween then ActiveTween:Cancel() end
+	FollowConnection, ActiveTween = nil, nil
+end
+
+MainTab:CreateDropdown({
+	Name = "Follow Player",
+	Options = getPlayerNames(),
+	Callback = function(Option)
+		FollowTargetName = Option[1]
+	end
+})
+
+Players.PlayerAdded:Connect(function()
+	Rayfield.Flags.FollowPlayerDropdown:Set(getPlayerNames())
+end)
+
+Players.PlayerRemoving:Connect(function()
+	Rayfield.Flags.FollowPlayerDropdown:Set(getPlayerNames())
+end)
+
+FollowToggleRef = MainTab:CreateToggle({
+	Name = "Enable Follow",
+	Callback = function(Value)
+		FollowEnabled = Value
+		if Value then startFollow() else stopFollow() end
+	end
+})
+
+MainTab:CreateSlider({
+	Name = "Follow Tween Speed",
+	Range = {0.1, 2},
+	Increment = 0.1,
+	CurrentValue = 0.5,
+	Callback = function(Value)
+		FollowSpeed = Value
+	end
+})
+
+MainTab:CreateKeybind({
+	Name = "Toggle Follow",
+	CurrentKeybind = "G",
+	Callback = function()
+		FollowToggleRef:Set(not FollowEnabled)
+	end
+})
+
+local Divider = MainTab:CreateDivider()
+
+--------- Slap Apple
+MainTab:CreateButton({
+	Name = "Slap Apple Collect",
+	Callback = function()
+		local character = LocalPlayer.Character
+		local hrp = character and character:FindFirstChild("HumanoidRootPart")
+		if not hrp then return end
+
+		local slapplesFolder = workspace:FindFirstChild("Arena")
+			and workspace.Arena:FindFirstChild("island5")
+			and workspace.Arena.island5:FindFirstChild("Slapples")
+
+		if not slapplesFolder then
+			warn("Slapples folder not found")
+			return
+		end
+
+		for _, slapple in ipairs(slapplesFolder:GetChildren()) do
+			if slapple:IsA("Model") then
+				-- Teleport directly into the player
+				slapple:PivotTo(hrp.CFrame)
+			end
+		end
+	end
+})
+
+
