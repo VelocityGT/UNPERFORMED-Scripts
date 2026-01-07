@@ -286,3 +286,67 @@ MainTab:CreateButton({
 })
 
 
+--------------------------
+--AUTO FARM TAB
+--------------------------
+local AutoFarmTab = Window:CreateTab("AutoFarm", 4483362458)
+
+local Divider = AutoFarmTab:CreateDivider()
+
+local AutoSlappleEnabled = false
+local AutoSlappleConnection
+
+
+local function startAutoSlapple()
+	if AutoSlappleConnection then return end
+
+	AutoSlappleConnection = RunService.Heartbeat:Connect(function()
+		if not AutoSlappleEnabled then return end
+
+		local character = LocalPlayer.Character
+		local hrp = character and character:FindFirstChild("HumanoidRootPart")
+		if not hrp then return end
+
+		local slapplesFolder = workspace:FindFirstChild("Arena")
+			and workspace.Arena:FindFirstChild("island5")
+			and workspace.Arena.island5:FindFirstChild("Slapples")
+
+		if not slapplesFolder then return end
+
+		for _, slapple in ipairs(slapplesFolder:GetChildren()) do
+			if slapple:IsA("Model") then
+				-- Disable collisions to avoid flinging
+				for _, part in ipairs(slapple:GetDescendants()) do
+					if part:IsA("BasePart") then
+						part.CanCollide = false
+					end
+				end
+
+				-- Pull directly into player
+				slapple:PivotTo(hrp.CFrame)
+			end
+		end
+	end)
+end
+
+local function stopAutoSlapple()
+	if AutoSlappleConnection then
+		AutoSlappleConnection:Disconnect()
+		AutoSlappleConnection = nil
+	end
+end
+
+
+AutoFarmTab:CreateToggle({
+	Name = "Auto Slapple Farm",
+	CurrentValue = false,
+	Flag = "AutoSlappleFarm",
+	Callback = function(Value)
+		AutoSlappleEnabled = Value
+		if Value then
+			startAutoSlapple()
+		else
+			stopAutoSlapple()
+		end
+	end
+})
