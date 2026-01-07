@@ -3,6 +3,8 @@ local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -347,6 +349,125 @@ AutoFarmTab:CreateToggle({
 			startAutoSlapple()
 		else
 			stopAutoSlapple()
+		end
+	end
+})
+
+local ESpamConnection -- store connection
+
+AutoFarmTab:CreateToggle({
+	Name = "Replica Spam (Bob Glove AutoFarm)",
+	CurrentValue = false,
+	Flag = "ReplicaSpam",
+
+	Callback = function(Value)
+		if Value then
+			-- prevent duplicate connections
+			if ESpamConnection then return end
+
+			ESpamConnection = RunService.RenderStepped:Connect(function()
+				VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+				VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+			end)
+		else
+			-- properly stop spamming
+			if ESpamConnection then
+				ESpamConnection:Disconnect()
+				ESpamConnection = nil
+			end
+		end
+	end
+})
+
+----------------------------------------------------
+-- SLAP AURA (TOUCH BASED)
+----------------------------------------------------
+local Divider = AutoFarmTab:CreateDivider()
+
+local SlapAuraEnabled = false
+local TouchConnections = {}
+local LastSlapTime = 0
+
+local function getHeldTool()
+	local char = LocalPlayer.Character
+	if not char then return end
+	for _, v in ipairs(char:GetChildren()) do
+		if v:IsA("Tool") then
+			return v
+		end
+	end
+end
+
+local function isPlayerFromCharacter(hit)
+	local model = hit:FindFirstAncestorOfClass("Model")
+	if not model then return end
+	return Players:GetPlayerFromCharacter(model)
+end
+
+local function clearConnections()
+	for _, c in ipairs(TouchConnections) do
+		c:Disconnect()
+	end
+	table.clear(TouchConnections)
+end
+
+local function setupSlapAura()
+	clearConnections()
+
+	local char = LocalPlayer.Character
+	if not char then return end
+
+	local tool = getHeldTool()
+	if not tool then return end
+
+	-- find all glove / hand parts
+	for _, part in ipairs(char:GetDescendants()) do
+		if part:IsA("BasePart") then
+			local conn = part.Touched:Connect(function(hit)
+				if not SlapAuraEnabled then return end
+
+				local targetPlayer = isPlayerFromCharacter(hit)
+				if not targetPlayer or targetPlayer == LocalPlayer then return end
+
+				-- cooldown safe check
+				if tool.Enabled == false then return end
+
+				-- activate slap
+				tool:Activate()
+			end)
+
+			table.insert(TouchConnections, conn)
+		end
+	end
+end
+
+local function enableSlapAura()
+	SlapAuraEnabled = true
+	setupSlapAura()
+end
+
+local function disableSlapAura()
+	SlapAuraEnabled = false
+	clearConnections()
+end
+
+-- reapply on respawn / tool change
+LocalPlayer.CharacterAdded:Connect(function()
+	task.wait(1)
+	if SlapAuraEnabled then
+		setupSlapAura()
+	end
+end)
+
+AutoFarmTab:CreateToggle({
+	Name = "Slap Aura (Touch Based)",
+	CurrentValue = false,
+	Flag = "SlapAura",
+	Callback = function(Value)
+		if Value then
+			enableSlapAura()
+		else
+			disableSlapAura()
 		end
 	end
 })
