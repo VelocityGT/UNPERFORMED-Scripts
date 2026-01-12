@@ -1,0 +1,417 @@
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local LocalPlayer = Players.LocalPlayer
+
+
+
+
+WindUI:AddTheme({
+    Name = "Theme", -- theme name
+    
+    Accent = Color3.fromHex("#18181b"),
+    Background = Color3.fromHex("#101010"), -- Accent
+    Outline = Color3.fromHex("#FFFFFF"),
+    Text = Color3.fromHex("#FFFFFF"),
+    Placeholder = Color3.fromHex("#7a7a7a"),
+    Button = Color3.fromHex("#52525b"),
+    Icon = Color3.fromHex("#a1a1aa"),
+})
+
+WindUI:SetTheme("Theme")
+
+local Window = WindUI:CreateWindow({
+    Title = "UNPERFORMED | Slap Battle",
+    Icon = "infinity", -- lucide icon. optional
+    Author = "by Unperformed & Velocity", -- optional
+})
+
+WindUI:Notify({
+    Title = "WARNING",
+    Content = "WARNING: This script may be detected, we do not know as for this is one of the first releases of this script. https://discord.gg/KbMQ22TzDa",
+    Duration = 3, -- 3 seconds
+    Icon = "infinity",
+})
+
+local MainTab = Window:Tab({
+    Title = "Main",
+    Icon = "house", -- optional
+    Locked = false,
+})
+
+local PlayerTab = Window:Tab({
+    Title = "Player",
+    Icon = "user", -- optional
+    Locked = false,
+})
+
+local AutoTab = Window:Tab({
+    Title = "AutoFarm",
+    Icon = "repeat-2", -- optional
+    Locked = false,
+})
+
+local MiscTab = Window:Tab({
+    Title = "Misc",
+    Icon = nil, -- optional
+    Locked = false,
+})
+
+-- CODE
+--// =====================================================
+--// Master AutoFarm Toggle
+--// =====================================================
+
+local MasterFarm = false
+
+AutoTab:Toggle({
+    Title = "AutoFarm (ALL)",
+    Desc = "Toggles every AutoFarm feature",
+    Default = false,
+    Callback = function(Value)
+        MasterFarm = Value
+
+        -- Crown Magnet
+        if CrownFarm ~= nil then
+            CrownFarm = Value
+            if not Value and CrownConnection then
+                CrownConnection:Disconnect()
+                CrownConnection = nil
+            end
+        end
+
+        -- Auto Attack
+        if AutoAttack ~= nil then
+            AutoAttack = Value
+            if not Value and AttackLoop then
+                AttackLoop:Disconnect()
+                AttackLoop = nil
+            end
+        end
+
+        -- Auto Sell
+        if AutoSell ~= nil then
+            AutoSell = Value
+            if not Value and SellLoop then
+                SellLoop:Disconnect()
+                SellLoop = nil
+            end
+        end
+    end
+})
+
+AutoTab:Divider()
+
+--// Crown AutoFarm
+local Workspace = game:GetService("Workspace")
+
+local CrownFolder = Workspace:WaitForChild("Gameplay")
+    :WaitForChild("CurrencyPickup")
+    :WaitForChild("CurrencyHolder")
+
+local CrownFarm = false
+local CrownConnection
+
+local function getRoot()
+    local char = LocalPlayer.Character
+    if not char then return end
+    return char:FindFirstChild("HumanoidRootPart")
+end
+
+local function moveCrown(obj)
+    local root = getRoot()
+    if not root then return end
+
+    if obj:IsA("BasePart") then
+        obj.CanCollide = false
+        obj.AssemblyLinearVelocity = Vector3.zero
+        obj.CFrame = root.CFrame
+    elseif obj:IsA("Model") and obj.PrimaryPart then
+        obj.PrimaryPart.CanCollide = false
+        obj:SetPrimaryPartCFrame(root.CFrame)
+    end
+end
+
+local function collectCrowns()
+    for _, item in ipairs(CrownFolder:GetDescendants()) do
+        if item.Name:lower():find("crown") then
+            moveCrown(item)
+        end
+    end
+end
+
+AutoTab:Toggle({
+    Title = "Crown Farm",
+    Desc = "Brings Crowns Into Your Body To Farm",
+    Default = false,
+    Callback = function(Value)
+        CrownFarm = Value
+
+        if Value then
+            if CrownConnection then return end
+            CrownConnection = RunService.Heartbeat:Connect(function()
+                pcall(collectCrowns)
+            end)
+        else
+            if CrownConnection then
+                CrownConnection:Disconnect()
+                CrownConnection = nil
+            end
+        end
+    end
+})
+
+
+--// =====================================================
+--// Auto Attack via ReplicatedStorage.Events.SwingSaber
+--// =====================================================
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SwingRemote = ReplicatedStorage:WaitForChild("Events"):WaitForChild("SwingSaber")
+
+local AutoAttack = false
+local AttackLoop
+local AttackDelay = 0.15 -- adjust for speed (lower = faster)
+
+local last = 0
+
+AutoTab:Toggle({
+    Title = "Auto Attack",
+    Desc = "Fires SwingSaber Remote",
+    Default = false,
+    Callback = function(Value)
+        AutoAttack = Value
+
+        if Value then
+            if AttackLoop then return end
+            AttackLoop = RunService.Heartbeat:Connect(function()
+                if tick() - last < AttackDelay then return end
+                last = tick()
+
+                -- fire with no args (uses game’s current swing state)
+                pcall(function()
+                    SwingRemote:FireServer()
+                end)
+            end)
+        else
+            if AttackLoop then
+                AttackLoop:Disconnect()
+                AttackLoop = nil
+            end
+        end
+    end
+})
+
+--// =====================================================
+--// Auto Sell
+--// =====================================================
+
+local Replicated = game:GetService("ReplicatedStorage")
+local SellRemote = Replicated:WaitForChild("Events"):WaitForChild("SellStrength")
+
+local AutoSell = false
+local SellLoop
+local SellDelay = 0.5 -- don’t go too low or server may ignore
+
+local lastSell = 0
+
+AutoTab:Toggle({
+    Title = "Auto Sell",
+    Desc = "Automatically sells your strength",
+    Default = false,
+    Callback = function(Value)
+        AutoSell = Value
+
+        if Value then
+            if SellLoop then return end
+            SellLoop = RunService.Heartbeat:Connect(function()
+                if tick() - lastSell < SellDelay then return end
+                lastSell = tick()
+
+                pcall(function()
+                    SellRemote:FireServer()
+                end)
+            end)
+        else
+            if SellLoop then
+                SellLoop:Disconnect()
+                SellLoop = nil
+            end
+        end
+    end
+})
+
+
+
+--// =====================================================
+--// Player Movement Mods
+--// =====================================================
+
+local WalkSpeedEnabled = false
+local WalkSpeedValue = 16
+local DefaultWalkSpeed = 16
+
+local JumpEnabled = false
+local JumpValue = 50
+local DefaultJump = 50
+
+local FlyEnabled = false
+local FlySpeed = 50
+local FlyBV, FlyBG
+
+local function getHumanoid()
+    local char = LocalPlayer.Character
+    if not char then return end
+    return char:FindFirstChildOfClass("Humanoid")
+end
+
+local function getRoot()
+    local char = LocalPlayer.Character
+    if not char then return end
+    return char:FindFirstChild("HumanoidRootPart")
+end
+
+RunService.Heartbeat:Connect(function()
+    local hum = getHumanoid()
+    if not hum then return end
+
+    if WalkSpeedEnabled then
+        hum.WalkSpeed = WalkSpeedValue
+    end
+
+    if JumpEnabled then
+        hum.JumpPower = JumpValue
+    end
+end)
+
+PlayerTab:Divider()
+
+-- WalkSpeed
+PlayerTab:Toggle({
+    Title = "WalkSpeed",
+    Default = false,
+    Callback = function(Value)
+        WalkSpeedEnabled = Value
+        if not Value then
+            local hum = getHumanoid()
+            if hum then hum.WalkSpeed = DefaultWalkSpeed end
+        end
+    end
+})
+
+PlayerTab:Slider({
+    Title = "WalkSpeed",
+    Desc = "How fast your character moves",
+    Step = 1,
+    Value = {
+        Min = 16,
+        Max = 200,
+        Default = 16,
+    },
+    Callback = function(Value)
+        WalkSpeedValue = Value
+        if WalkSpeedEnabled then
+            local hum = getHumanoid()
+            if hum then hum.WalkSpeed = Value end
+        end
+    end
+})
+
+
+PlayerTab:Divider()
+
+-- Jump
+PlayerTab:Toggle({
+    Title = "Jump Height",
+    Default = false,
+    Callback = function(Value)
+        JumpEnabled = Value
+        if not Value then
+            local hum = getHumanoid()
+            if hum then hum.JumpPower = DefaultJump end
+        end
+    end
+})
+
+PlayerTab:Slider({
+    Title = "Jump Power",
+    Desc = "How high you jump",
+    Step = 1,
+    Value = {
+        Min = 50,
+        Max = 200,
+        Default = 50,
+    },
+    Callback = function(Value)
+        JumpValue = Value
+        if JumpEnabled then
+            local hum = getHumanoid()
+            if hum then hum.JumpPower = Value end
+        end
+    end
+})
+
+
+PlayerTab:Divider()
+
+-- Fly
+PlayerTab:Toggle({
+    Title = "Fly",
+    Default = false,
+    Callback = function(Value)
+        FlyEnabled = Value
+        local root = getRoot()
+
+        if Value and root then
+            FlyBV = Instance.new("BodyVelocity")
+            FlyBV.MaxForce = Vector3.new(1e9,1e9,1e9)
+            FlyBV.Parent = root
+
+            FlyBG = Instance.new("BodyGyro")
+            FlyBG.MaxTorque = Vector3.new(1e9,1e9,1e9)
+            FlyBG.P = 1e4
+            FlyBG.Parent = root
+        else
+            if FlyBV then FlyBV:Destroy() FlyBV = nil end
+            if FlyBG then FlyBG:Destroy() FlyBG = nil end
+        end
+    end
+})
+
+PlayerTab:Slider({
+    Title = "Fly Speed",
+    Desc = "Fly movement speed",
+    Step = 1,
+    Value = {
+        Min = 10,
+        Max = 200,
+        Default = 50,
+    },
+    Callback = function(Value)
+        FlySpeed = Value
+    end
+})
+
+
+-- Fly Movement
+RunService.Heartbeat:Connect(function()
+    if not FlyEnabled then return end
+    local root = getRoot()
+    if not root or not FlyBV then return end
+
+    local cam = workspace.CurrentCamera
+    local move = Vector3.zero
+
+    if UserInputService:IsKeyDown(Enum.KeyCode.W) then move += cam.CFrame.LookVector end
+    if UserInputService:IsKeyDown(Enum.KeyCode.S) then move -= cam.CFrame.LookVector end
+    if UserInputService:IsKeyDown(Enum.KeyCode.A) then move -= cam.CFrame.RightVector end
+    if UserInputService:IsKeyDown(Enum.KeyCode.D) then move += cam.CFrame.RightVector end
+    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move += cam.CFrame.UpVector end
+    if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then move -= cam.CFrame.UpVector end
+
+    FlyBV.Velocity = move * FlySpeed
+    FlyBG.CFrame = cam.CFrame
+end)
